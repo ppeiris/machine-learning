@@ -10,7 +10,7 @@ class LearningAgent(Agent):
     """ An agent that learns to drive in the Smartcab world.
         This is the object you will be modifying. """
 
-    def __init__(self, env, learning=False, epsilon=1.0, alpha=0.5):
+    def __init__(self, env, learning=False, epsilon=1.0, alpha=0.5, decayfun=None, decayfun_a=0.5):
         super(LearningAgent, self).__init__(env)     # Set the agent in the evironment
         self.planner = RoutePlanner(self.env, self)  # Create a route planner
         self.valid_actions = self.env.valid_actions  # The set of valid actions
@@ -20,14 +20,16 @@ class LearningAgent(Agent):
         self.Q = dict()          # Create a Q-table which will be a dictionary of tuples
         self.epsilon = epsilon   # Random exploration factor
         self.alpha = alpha       # Learning factor
-
+        self.decayfun = decayfun # list if decay functions
+        self.decayfun_a = decayfun_a # const values in the decay function
+        self.epsi = dict()
         ###########
         ## TO DO ##
         ###########
         # Set any additional class parameters as needed
 
 
-    def reset(self, destination=None, testing=False):
+    def reset(self, destination=None, testing=False, trial=0):
         """ The reset function is called at the beginning of each trial.
             'testing' is set to True if testing trials are being used
             once training trials have completed. """
@@ -44,13 +46,30 @@ class LearningAgent(Agent):
             self.alpha = 0.0
             return None
 
-        # self.epsilon = 1/(math.pow(self.n_trials,1/1.1))
-        # Update epsilon using a decay function of your choice
-        self.epsilon = self.epsilon - 0.05
+        if self.decayfun == "tpower":
+            # e = a^t
+            self.epsilon = math.pow(self.decayfun_a, trial)
+            return None
 
+        if self.decayfun == "invsqu":
+            # e = 1/t^2
+            self.epsilon = 1.0/(math.pow(trial, 2))
+            return None
+
+        if self.decayfun == "nexp":
+            #e = e^(-at)
+            self.epsilon = math.exp(-self.decayfun_a * trial)
+            return None
+
+        if self.decayfun == "trig":
+            # e = cos(at)
+            self.epsilon = math.cos(self.decayfun_a * trial)
+            return None
+
+        # Update epsilon using a decay function of your choice
         # Update additional class parameters as needed
         # If 'testing' is True, set epsilon and alpha to 0
-
+        self.epsilon = self.epsilon - 0.05
         return None
 
     def build_state(self):
@@ -62,15 +81,6 @@ class LearningAgent(Agent):
         waypoint = self.planner.next_waypoint() # The next waypoint
         inputs = self.env.sense(self)           # Visual input - intersection light and traffic
         deadline = self.env.get_deadline(self)  # Remaining deadline
-
-        # inputs = {
-        #     'light': 'green',
-        #     'oncoming': 'left',
-        #     'right': None,
-        #     'left': 'forward'
-        # }
-
-        # ('right', {'light': 'red', 'oncoming': 'left'})
 
         ###########
         ## TO DO ##
@@ -118,7 +128,6 @@ class LearningAgent(Agent):
             # Check if the state is already in the Q table
             # If it is not, create a new dictionary for that state
             if state not in self.Q.keys():
-                self.print_('*****************************************')
                 # create action vlaue pair
                 actions = dict()
                 # Then, for each action available, set the initial Q-value to 0.0
@@ -165,7 +174,13 @@ class LearningAgent(Agent):
         # When learning, implement the value iteration update rule
         if self.learning:
             # Use only the learning rate 'alpha' (do not use the discount factor 'gamma')
+            #
+            # self.print_(self.alpha)
+            # self.print_(self.Q[state][action])
             self.Q[state][action] = (1 - self.alpha)*self.Q[state][action] + self.alpha * reward
+            # self.print_(self.Q[state][action])
+
+            # raise Exception('')
 
 
         return
@@ -199,7 +214,7 @@ def run():
     #   verbose     - set to True to display additional output from the simulation
     #   num_dummies - discrete number of dummy agents in the environment, default is 100
     #   grid_size   - discrete number of intersections (columns, rows), default is (8, 6)
-    env = Environment(verbose=True)
+    env = Environment(verbose=False)
 
     ##############
     # Create the driving agent
@@ -207,7 +222,14 @@ def run():
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent, learning=True)
+    agent = env.create_agent(
+                LearningAgent,
+                learning=True,
+                epsilon=1.0,
+                decayfun="tpower",
+                decayfun_a=0.99,
+                alpha=0.5
+            )
 
     ##############
     # Follow the driving agent
@@ -222,14 +244,20 @@ def run():
     #   display      - set to False to disable the GUI if PyGame is enabled
     #   log_metrics  - set to True to log trial and simulation results to /logs
     #   optimized    - set to True to change the default log file name
-    sim = Simulator(env, update_delay=0.01, log_metrics=True, display=False)
+    sim = Simulator(
+        env,
+        update_delay=0.01,
+        log_metrics=True,
+        display=False,
+        optimized=True
+    )
 
     ##############
     # Run the simulator
     # Flags:
     #   tolerance  - epsilon tolerance before beginning testing, default is 0.05
     #   n_test     - discrete number of testing trials to perform, default is 0
-    sim.run(n_test=10)
+    sim.run(n_test=10, tolerance=0.05)
 
 
 if __name__ == '__main__':
