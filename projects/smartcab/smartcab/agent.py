@@ -109,9 +109,13 @@ class LearningAgent(Agent):
         ###########
         # Calculate the maximum Q-value of all actions for a given state
         mval = max(self.Q[state].values())
+        actions = []
         for action, value in zip(self.Q[state].keys(), self.Q[state].values()):
             if value == mval:
-                return action
+                actions += [action]
+
+        if actions:
+            return random.choice(actions)
 
         return None
 
@@ -214,7 +218,7 @@ def run():
     #   verbose     - set to True to display additional output from the simulation
     #   num_dummies - discrete number of dummy agents in the environment, default is 100
     #   grid_size   - discrete number of intersections (columns, rows), default is (8, 6)
-    env = Environment(verbose=False)
+    env = Environment(num_dummies=1, verbose=False)
 
     ##############
     # Create the driving agent
@@ -246,9 +250,9 @@ def run():
     #   optimized    - set to True to change the default log file name
     sim = Simulator(
         env,
-        update_delay=0.01,
+        update_delay=0.5,
         log_metrics=True,
-        display=False,
+        display=True,
         optimized=True
     )
 
