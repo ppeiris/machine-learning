@@ -63,3 +63,13 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+
+*.aux
+*.bbl
+*.blg
+*.dvi
+*.log
+*.out
+*.gz
+*.toc
